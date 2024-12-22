@@ -1,3 +1,7 @@
+import os
+import sys
+import os
+
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 import numpy as np
@@ -20,17 +24,15 @@ def predict_image(image_path):
     return class_label
 
 
-# Test the function
+# Main function
 if __name__ == '__main__':
-
-    while True:
-        run = input("Do you want to run this model? y/n: ")
-        if run == 'y':
-            image_path = input("Enter the image path: ")
+    # Check if an image path is provided as an argument
+    if len(sys.argv) != 2:
+        print("Usage: python main.py <image_path>")
+    else:
+        image_path = sys.argv[1]
+        try:
             result = predict_image(image_path)
-            print(f'The image is a {result}.')
-
-        else:
-            break
-
-
+            print(f'The image is a {result}.')  # Only print the result
+        except Exception as e:
+            print(f"Error: {str(e)}")
