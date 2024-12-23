@@ -17,6 +17,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 # Load the trained model
 model = load_model('cat_dog_model.h5')
 
+
 # Function to predict
 def predict_image(image_path):
     test_image = image.load_img(image_path, target_size=(64, 64))
@@ -26,8 +27,26 @@ def predict_image(image_path):
     class_label = 'Dog' if prediction[0][0] > 0.5 else 'Cat'
     return class_label
 
+
+# Function to delete a prediction record and image file
+def delete_prediction(record_id, file_path):
+    try:
+        # Delete the record from the database
+        record = session.query(Prediction).filter_by(id=record_id).first()
+        if record:
+            session.delete(record)
+            session.commit()
+
+        # Delete the image file if it exists
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        st.success("Prediction and image deleted successfully!")
+    except Exception as e:
+        st.error(f"Error while deleting: {str(e)}")
+
+
 # App title
-st.title("Cat and Dog Classifier with Image Storage")
+st.title("Cat and Dog Classifier with Image Storage and Delete Option")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload an image file (JPEG or PNG):", type=["jpg", "jpeg", "png"])
@@ -57,8 +76,16 @@ if st.button("Classify"):
     else:
         st.write("Please upload an image before classifying.")
 
-# View database content
-if st.button("View Predictions"):
-    results = session.query(Prediction).all()
-    for record in results:
-        st.write(f"Image: {record.image_name}, Prediction: {record.prediction}, Timestamp: {record.timestamp}")
+# View and manage database content
+st.write("### Previous Predictions")
+results = session.query(Prediction).all()
+for record in results:
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write(f"**Image Name:** {record.image_name}")
+        st.write(f"**Prediction:** {record.prediction}")
+        st.write(f"**Timestamp:** {record.timestamp}")
+    with col2:
+        if st.button(f"Delete", key=f"delete_{record.id}"):
+            delete_prediction(record.id, record.file_path)
+            #st.experimental_rerun()  # Refresh the page to update the view
