@@ -1,48 +1,65 @@
+import os
 import streamlit as st
-import subprocess
-import re
+from PIL import Image
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+import numpy as np
+from keras.preprocessing import image
 
-# Function to clean terminal output (remove ANSI escape sequences)
-def clean_output(output):
-    ansi_escape = re.compile(r'(?:\x1b[@-_][0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', output)
+# Import database setup
+from database import session, Prediction
 
-# Function to extract the last sentence from the output
-def extract_last_sentence(output):
-    lines = output.strip().splitlines()
-    # Get the last line and check for "The image is ..."
-    for line in reversed(lines):
-        if "The image is" in line:
-            return line.strip()
-    return "Result not found."
+# Create folder if it doesn't exist
+UPLOAD_FOLDER = "uploaded_images"
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Load the trained model
+model = load_model('cat_dog_model.h5')
+
+# Function to predict
+def predict_image(image_path):
+    test_image = image.load_img(image_path, target_size=(64, 64))
+    test_image = image.img_to_array(test_image)
+    test_image = np.expand_dims(test_image, axis=0)
+    prediction = model.predict(test_image)
+    class_label = 'Dog' if prediction[0][0] > 0.5 else 'Cat'
+    return class_label
 
 # App title
-st.title("Cat and Dog Classifier")
+st.title("Cat and Dog Classifier with Image Storage")
 
-# Input for the image path
-image_path = st.text_input("Enter the path to your image file:")
+# File uploader
+uploaded_file = st.file_uploader("Upload an image file (JPEG or PNG):", type=["jpg", "jpeg", "png"])
 
-# Button to classify the image
 if st.button("Classify"):
-    if image_path:
+    if uploaded_file is not None:
         try:
-            # Run the main.py script with the image path
-            result = subprocess.run(
-                ["python", "main.py", image_path],
-                capture_output=True,
-                text=True
-            )
+            # Save the uploaded image to the 'uploaded_images' folder
+            image_path = os.path.join(UPLOAD_FOLDER, uploaded_file.name)
+            with open(image_path, "wb") as f:
+                f.write(uploaded_file.read())
 
-            # Check for errors in the subprocess
-            if result.returncode != 0:
-                st.write("Error occurred:")
-                st.write(clean_output(result.stderr))  # Display any error messages
-            else:
-                # Clean and display the extracted result
-                cleaned_result = clean_output(result.stdout)
-                last_sentence = extract_last_sentence(cleaned_result)
-                st.write(f"Result: {last_sentence}")
+            # Predict the class of the image
+            result = predict_image(image_path)
+
+            # Display result
+            st.write(f"The image is classified as: **{result}**")
+
+            # Save prediction to database
+            new_prediction = Prediction(image_name=uploaded_file.name, file_path=image_path, prediction=result)
+            session.add(new_prediction)
+            session.commit()
+
+            st.write("Prediction saved to database.")
         except Exception as e:
-            st.write(f"Exception: {str(e)}")
+            st.write(f"Error occurred: {str(e)}")
     else:
-        st.write("Please enter a valid image path.")
+        st.write("Please upload an image before classifying.")
+
+# View database content
+if st.button("View Predictions"):
+    results = session.query(Prediction).all()
+    for record in results:
+        st.write(f"Image: {record.image_name}, Prediction: {record.prediction}, Timestamp: {record.timestamp}")
+        st.write(f"Image Path: {record.file_path}")
