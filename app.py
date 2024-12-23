@@ -62,4 +62,3 @@ if st.button("View Predictions"):
     results = session.query(Prediction).all()
     for record in results:
         st.write(f"Image: {record.image_name}, Prediction: {record.prediction}, Timestamp: {record.timestamp}")
-        st.write(f"Image Path: {record.file_path}")
