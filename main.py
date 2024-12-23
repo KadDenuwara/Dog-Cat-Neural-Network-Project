@@ -20,7 +20,7 @@ def predict_image(image_path):
 
     # Predict
     prediction = model.predict(test_image)
-    class_label = 'Dog' if prediction[0][0] > 0.5 else 'Cat'
+    class_label = 'Dog' if prediction[0][0] == 1 else 'Cat'
     return class_label
 
 
