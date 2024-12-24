@@ -2,9 +2,9 @@ import os
 import streamlit as st
 from PIL import Image
 import tensorflow as tf
+from tensorflow.keras.preprocessing import image
 from tensorflow.keras.models import load_model
 import numpy as np
-from keras.preprocessing import image
 
 # Import database setup
 from database import session, Prediction
